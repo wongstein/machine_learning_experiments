@@ -13,9 +13,9 @@ class database():
 	def __init__(self, database_name):
 		self.database_name = database_name
 		self.host = "localhost"
-		self.user = "root"
-		self.passwd = "castrated1432"
-		self.directory = "~/AmeeWongsein/Thesis/"
+		self.user = "this_user"
+		self.passwd = "password"
+		self.directory = "~/Thesis/"
 
 		#database_types
 		self.text = "TEXT"
