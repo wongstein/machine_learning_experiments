@@ -31,7 +31,7 @@ my_features = feature_helper.Features()
 feature_header = None
 
 #a positive int, that reflext the number of days we go back in time
-point_of_view = None
+point_of_view = 0
 
 feature_data_space = []
 #need to get listing data where it's at least one year of data. Just using Barcelona 2014 as default. Predict into 2015
@@ -153,10 +153,11 @@ def _get_feature_data(listing_data, day):
                 #Need to make extra consideration
                 to_add = my_features.history_features(listing_id, dict_name, day, specification, point_of_view)
 
-                if to_add and isinstance(to_add, list):
-                    final += to_add
-                elif to_add != None: #could be 0
-                    final.append(to_add)
+                if to_add is not None:
+                    if isinstance(to_add, list):
+                        final += to_add
+                    else:
+                        final.append(to_add)
                 else: #to add is None
                     return None
 
@@ -167,27 +168,12 @@ def transform_data(data_list, transformation_model):
     global feature_header
 
     #selected transformations, min_max for categorical data
-    #z_standard for
-    '''
-    #for full location learning
-    to_normalise = ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day', 'cluster_average', 'occupation history day -1', 'occupation history day -2', 'occupation history day - 3', 'occupation history day - 4', 'occupation history day -5', 'occupation history day -6', 'occupation history day -7']
-    '''
 
-    #for point of view
-    to_normalise = ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day']
     #categorical data min_max
-    transformed_data = transformation_model['min_max'].transform_data(data_list, feature_header, to_normalise)
-
-    '''
-    #for no point of view
-    to_normalise = ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7', 'cluster averages day -1', 'cluster averages day -2', 'cluster averages day -3', 'cluster averages day -4', 'cluster averages day -5', 'cluster averages day -6', 'cluster averages day -7']
-    '''
-
-    #for point of view
-    to_normalise = ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7']
+    transformed_data = transformation_model['min_max'].transform_data(data_list, feature_header)
 
     #discrete data
-    transformed_data = transformation_model['z-standard'].transform_data(data_list, feature_header, to_normalise)
+    transformed_data = transformation_model['z-standard'].transform_data(data_list, feature_header)
 
     return transformed_data
 
@@ -277,37 +263,12 @@ def results_averaging(final_results_dict):
 
     return final
 
-'''
-#original normalisation for full data trianing
-def make_normalisation_model(all_features, normalisation_type = None):
-    transformation_model = {}
-
-    if normalisation_type and normalisation_type in ['z-standard', 'min_max']:
-        transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, normalisation_type, ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day', 'cluster_average', 'occupation history day -1', 'occupation history day -2', 'occupation history day - 3', 'occupation history day - 4', 'occupation history day -5', 'occupation history day -6', 'occupation history day -7'])
-        transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard", ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7', 'cluster averages day -1', 'cluster averages day -2', 'cluster averages day -3', 'cluster averages day -4', 'cluster averages day -5', 'cluster averages day -6', 'cluster averages day -7'])
-    elif not normalisation_type: #default to the frankenstein normilisation experiments
-        transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, "min_max", ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day', 'cluster_average', 'occupation history day -1', 'occupation history day -2', 'occupation history day - 3', 'occupation history day - 4', 'occupation history day -5', 'occupation history day -6', 'occupation history day -7'])
-        transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard", ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7', 'cluster averages day -1', 'cluster averages day -2', 'cluster averages day -3', 'cluster averages day -4', 'cluster averages day -5', 'cluster averages day -6', 'cluster averages day -7'])
-    else: #input was wrong
-        print "didn't put in a right normalisation model, try again."
-        sys.exit()
-
-    return transformation_model
-'''
-
 #normalisation for point of view, because the data used is different
 def make_normalisation_model(all_features, normalisation_type = None):
     transformation_model = {}
 
-    if normalisation_type and normalisation_type in ['z-standard', 'min_max']:
-        transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, normalisation_type, ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day'])
-        transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard", ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7'])
-    elif not normalisation_type: #default to the frankenstein normilisation experiments
-        transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, "min_max", ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day'])
-        transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard", ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7'])
-    else: #input was wrong
-        print "didn't put in a right normalisation model, try again."
-        sys.exit()
+    transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, 'min_max')
+    transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard")
 
     return transformation_model
 
@@ -324,10 +285,10 @@ def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
 
     #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
     start_date = datetime.date(2014, 1, 20)
-    end_date = datetime.date(2016, 1, 20)
+    end_date = datetime.date(2016, 1, 30)
 
-    training_dates = {"start_date": datetime.date(2014, 1, 20), "end_date": datetime.date(2015, 1, 20)}
-    testing_dates = {"start_date": datetime.date(2015, 1, 20), "end_date": datetime.date(2016, 1, 20)}
+    training_dates = {"start_date": datetime.date(2014, 1, 20), "end_date": datetime.date(2015, 1, 29)}
+    testing_dates = {"start_date": datetime.date(2015, 1, 30), "end_date": datetime.date(2016, 1, 30)}
 
     #three city, single listing training and prediction test
     #take out 6
@@ -421,20 +382,6 @@ def point_of_view_experiments():
 if __name__ == '__main__':
     global feature_data_space, feature_header, my_features, point_of_view
 
-    #categorical features
-    '''
-    feature_data_space = [{"weekday_number": None}, {"week_number": None}, {"quarter_in_year": None}, {"day_number": None}, {"month_number": None}, {"listing_cluster": None}]
-
-    #features that are continuous ints
-    feature_data_space += [{"days_active": None}, {"price_dict": None}, {'CANCELLED': None}, {'ENQUIRY': None}, {'k-means_season_clusters': None}, {'cluster_averages_year': None}]
-    #history data
-    feature_data_space += [{"k-means_season_clusters": 7}, {'cluster_averages_year': 7}, {'occupancy_dict': 7}]
-
-
-    feature_header = ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day', 'cluster_average']
-
-    feature_header += ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7', 'cluster averages day -1', 'cluster averages day -2', 'cluster averages day -3', 'cluster averages day -4', 'cluster averages day -5', 'cluster averages day -6', 'cluster averages day -7', 'occupation history day -1', 'occupation history day -2', 'occupation history day - 3', 'occupation history day - 4', 'occupation history day -5', 'occupation history day -6', 'occupation history day -7']
-    '''
     #update my features
     my_features = feature_helper.Features(feature_data_space)
 
@@ -455,14 +402,21 @@ if __name__ == '__main__':
     feature_data_space = [{"weekday_number": None}, {"week_number": None}, {"quarter_in_year": None}, {"day_number": None}, {"month_number": None}, {"listing_cluster": None}]
 
     #features that are continuous ints
-    feature_data_space += [{"days_active": None}, {"price_dict": None}, {'CANCELLED': None}, {'ENQUIRY': None}, {'k-means_season_clusters': None}]
+    feature_data_space += [{"days_active": None}, {"price_dict": None}, {'CANCELLED': point_of_view}, {'ENQUIRY': point_of_view}, {'k-means_season_clusters': None}]
     #history data
     feature_data_space += [{"k-means_season_clusters": 7}]
 
+    #best match features
+    feature_data_space += [{'occupancy_dict': 'best_match_7'}, {'cluster_averages_year': 'best_match_7'}, {'ENQUIRY': 'best_match_day'}, {'CANCELLED': 'best_match_day'}, {'occupancy_dict': 'best_match_day'}]
 
     feature_header = ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day']
 
     feature_header += ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7']
+
+    #for best match
+    feature_header += ['occupancy_match_-1', 'occupancy_match_-2', 'occupancy_match_-3', 'occupancy_match_-4', 'occupancy_match_-5', 'occupancy_match_-6', 'occupancy_match_-7', 'cluster_average_match_-1', 'cluster_average_match_-2', 'cluster_average_match_-3', 'cluster_average_match_-4', 'cluster_average_match_-5', 'cluster_average_match_-6', 'cluster_average_match_-7', 'ENQUIRY_match_day', 'CANCELLED_match_day', 'occupancy_match_day']
+
+
     point_of_view_experiments()
 
 
