@@ -66,13 +66,25 @@ def location_listing_pairings(return_dict = False):
 
     thesis_data.destroy_connection()
 
-def listing_cluster_type_pairings(return_dict = True):
+'''
+location is an int for the label id number
+'''
+def listing_cluster_type_pairings(location = None, return_dict = True):
 
     thesis_data = database.database("Thesis")
 
-    pairing_list = thesis_data.get_data("SELECT * FROM `listing_clusters_plain`;")
+    if location:
+        query = "SELECT `listing_clusters_plain`.`listing_id`, `listing_clusters_plain`.`cluster_id` FROM `listing_clusters_plain` INNER JOIN `listing_locations_DBSCAN_final` ON `listing_locations_DBSCAN_final`.`listing_id` = `listing_clusters_plain`.`listing_id` WHERE `label_id` = " + str(location)
+    else:
+        query = "SELECT * FROM `listing_clusters_plain`;"
+    pairing_list = thesis_data.get_data(query)
 
-    return {entry[0]: entry[1] for entry in pairing_list}
+    thesis_data.destroy_connection()
+
+    if return_dict:
+        return {entry[0]: entry[1] for entry in pairing_list}
+    else:
+        return pairing_list
 
 def get_earliest_dates(as_dict = False):
     worldhomes_data = database.database("worldhomes")

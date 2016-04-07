@@ -1,4 +1,4 @@
-from library import database, my_time, normilisation, classification
+from library import database, my_time, normilisation, classification, common_database_functions
 from library import feature_helper
 import json
 import datetime
@@ -78,7 +78,10 @@ def fill_experiment_data(testing_listings, start_date, end_date):
     all_data = {}
     for listing_data in testing_listings:
         #setup basic structure
-        listing_id = listing_data[0]
+        if isinstance(listing_data, list):
+            listing_id = listing_data[0]
+        else:
+            listing_id = listing_data
 
         '''
         if you want to reduce just to the listings that have previous data that trained with
@@ -116,7 +119,11 @@ def _get_feature_data(listing_data, day):
     global my_features, feature_data_space, point_of_view
 
     final = []
-    listing_id = listing_data[0]
+    if isinstance(listing_data, list):
+        listing_id = listing_data[0]
+    else:
+        listing_id = listing_data
+
     listing_cluster = listing_data[1]
 
     for this_dict in feature_data_space:
@@ -146,12 +153,10 @@ def _get_feature_data(listing_data, day):
             elif dict_name in ["weekday_number", "week_number", "quarter_in_year", "day_number", "month_number"]:
                 final.append(my_features.date_features(dict_name, day))
 
-            #elif dict_name in ["k-means_season_clusters", "cluster_averages", 'cluster_averages_year', 'occupancy_dict', 'CANCELLED', 'ENQUIRY']:
+            #"k-means_season_clusters", "cluster_averages", 'cluster_averages_year', 'occupancy_dict', 'CANCELLED', 'ENQUIRY'
             else:
 
                 #specification in this case is just going to be the amount of data around the week to include around the view_date,
-                #which is a year ago.
-                #Need to make extra consideration
                 to_add = my_features.history_features(listing_id, dict_name, day, specification, point_of_view)
 
                 if to_add and isinstance(to_add, list):
@@ -188,9 +193,9 @@ def fill_training_and_testing_data(testing_dates, training_dates = None, listing
     training_data = {"features": [], "classification" : []}
     testing_data = {}
 
-    if isinstance(listing_ids,0):
+    if isinstance(listing_ids, int):
         all_ids = listing_ids
-    else:
+    elif not listing_ids:
         all_ids = all_data.keys()
 
     for listing_id in all_ids:
@@ -383,50 +388,50 @@ def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
         print "analyzed ", len(all_results), " records"
     print "finished!"
 
-def point_of_view_experiments():
-    global point_of_view
-    #defaulting to full location now just to see
-    for this_point in [1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
-        point_of_view = this_point
-        experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
 
-        fullLocation(experiment, "min_max", with_PCA = None)
+def listingCluster_training(experiment_name, with_PCA = None):
+    global my_features
+    #listing type training
 
-def singlelisting(experiment_name, normalisation_type = None, with_PCA = None):
-    global feature_header
-
-    #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
     start_date = datetime.date(2014, 1, 20)
     end_date = datetime.date(2016, 1, 20)
 
-    training_dates = {"start_date": datetime.date(2014, 1, 20), "end_date": datetime.date(2015, 1, 20)}
-    testing_dates = {"start_date": datetime.date(2015, 1, 20), "end_date": datetime.date(2016, 1, 20)}
+    training_dates = {"start_date": datetime.date(2014, 1, 1), "end_date": datetime.date(2015, 1, 1)}
+    testing_dates = {"start_date": datetime.date(2015, 1, 1), "end_date": datetime.date(2016, 1, 1)}
 
     #three city, single listing training and prediction test
-    #take out 6
-    #for location_id in [1, 6, 11, 19]:
     for location_id in [0, 1, 19]:
-    #for location_id in [1]:
-        print "On location ", location_id
+        current_location = location_id
+        print "on location: ", location_id
 
-        testing_listings = get_testing_listings([location_id])
-        print "number of listings for this location: ", len(testing_listings)
+        #make listing_clusters: listing_cluster [ids]
+        global testing_listings
 
+        #FOR CITY
+        listing_clusters_list = common_database_functions.listing_cluster_type_pairings(location_id, return_dict = False)
+        listing_clusters = {entry[1]:[] for entry in listing_clusters_list}
+        for entry in listing_clusters_list:
+            listing_clusters[entry[1]].append(entry[0])
+
+        #classification_data = fill_training_and_testing_data(training_dates, testing_dates)
         all_results = {}
 
-        for listing_data in testing_listings:
-            #make transformation model
-            listing_id = listing_data[0]
-
-            if listing_id not in all_data.keys():
+        #set up trianing and testing
+        for listing_cluster, listing_id_list in listing_clusters.iteritems():
+            if str(listing_cluster) not in my_features.json_files['cluster_averages_year']['2014'][str(location_id)].keys():
                 continue
 
-            fill_experiment_data([listing_data], start_date, end_date)
+            #get everything in right format
+            listing_data = [[entry, listing_cluster] for entry in listing_id_list if str(entry) in my_features.json_files["occupancy_dict"].keys()]
+
+            if not listing_data:
+                continue
+
+            fill_experiment_data(listing_data, start_date, end_date)
+
             all_features = [all_data[entry][day]['features'] for entry in all_data.keys() for day in all_data[entry].keys()]
-            try:
-                transformation_model = make_normalisation_model(all_features)
-            except Exception as e:
-                print "hello"
+
+            transformation_model = make_normalisation_model(all_features)
 
             #if normalisation type, we hack the existing function to return transformation with the original 2 keys, but they hold the same model type trained to different types of data.
 
@@ -437,8 +442,7 @@ def singlelisting(experiment_name, normalisation_type = None, with_PCA = None):
                 continue
 
             training_data = classification_data[0]
-            testing_dict = classification_data[1][listing_id]
-
+            testing_dict = classification_data[1]
 
             #transform data
             #training_data['features'] = transformation_model.transform_data(training_data['features'], feature_header, columns_to_normalise)
@@ -453,11 +457,12 @@ def singlelisting(experiment_name, normalisation_type = None, with_PCA = None):
             '''
             Training Section
             '''
-            testing_dict['features'] = transform_data(testing_dict['features'], transformation_model)
-            if with_PCA:
-                testing_dict['features'] = PCA_features.do_PCA_analysis(experiment_name, testing_dict['features'], feature_header, location_id, number_components = with_PCA)
+            for listing_id in testing_dict.keys():
+                testing_dict[listing_id]['features'] = transform_data(testing_dict[listing_id]['features'], transformation_model)
+                if with_PCA:
+                    testing_dict[listing_id]['features'] = PCA_features.do_PCA_analysis(experiment_name, testing_dict[listing_id]['features'], feature_header, location_id)
 
-
+            #train please
             for model_name in ["random_forest", "centroid_prediction", "linearSVC", "nearest_neighbor", "decision_tree", "svc"]:
                 try:
                     prediction_model = make_classification_model(model_name, training_data)
@@ -465,28 +470,24 @@ def singlelisting(experiment_name, normalisation_type = None, with_PCA = None):
                     print e
                     break
 
-                results = test_classification(prediction_model, testing_dict)
+                for listing_id, testing in testing_dict.iteritems():
+                    results = test_classification(prediction_model, testing)
 
-                if results is not False:
-                    if listing_id not in all_results.keys():
-                        all_results[listing_id] = {}
-                    all_results[listing_id][model_name] = results
+                    if results is not False:
+                        if listing_id not in all_results.keys():
+                            all_results[listing_id] = {}
+                        all_results[listing_id][model_name] = results
 
-
-        #save all_results
-        location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
-        classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
-        print "saved individual results"
-
-        analysis = results_averaging(all_results)
-        classification.save_to_database("machine_learning_average_results", experiment_name, location_dict[location_id], analysis)
-        print "saved average results"
-
-        print analysis
         print "analyzed ", len(all_results), " records"
-    print "finished!"
+        analysis = results_averaging(all_results)
+
+        location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
+
+        classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
+        classification.save_to_database("machine_learning_average_results", experiment_name, location_dict[location_id], analysis)
 
 
+    print "finished!"    #sys.exit()
 
 
 
@@ -525,9 +526,10 @@ if __name__ == '__main__':
     #
     #
 
-    singlelisting('single_listing_min_z_new_enquiries')
+    #singlelisting('single_listing_min_z_new_enquiries')
 
 
+    listingCluster_training("cluster_training_min_z")
 
 
 
