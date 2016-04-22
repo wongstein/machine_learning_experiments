@@ -18,7 +18,7 @@ class Features():
 
 	def add_new_feature_json(self, dict_name):
 		#load json if it doesn't exist in json_files:
-		if dict_name in ["price_dict", "k-means_season_clusters", 'cluster_averages', 'cluster_averages_year'] and dict_name not in self.json_files.keys():
+		if dict_name in ["price_dict", "k-means_season_clusters", 'cluster_averages', 'cluster_averages_year', 'day_week_historical_encoding'] and dict_name not in self.json_files.keys():
 			try:
 				with open("data/" + dict_name + ".json") as jsonFile:
 					self.json_files[dict_name] = json.load(jsonFile)
@@ -82,13 +82,17 @@ class Features():
 		return to_add
 
 
-	def make_best_match(self, listing_id, dict_name, date, point_of_view):
+	def make_best_match(self, listing_id, dict_name, date, point_of_view, return_final_date = False):
 		#want to match the date with the most similar k-cluster (day of the week) value that is < point_of_view
 		#only for enquiries, cancellations, occupancy, seasons averages
 		date_season_designation = self.k_means_season_cluster_feature(listing_id, date)
 
+		if date_season_designation is None:
+			return None
+
 		not_found = True
 		go_back_week = 0
+
 		while(not_found):
 			test_date = date - datetime.timedelta(7 * go_back_week)
 			if test_date > date - datetime.timedelta(point_of_view):
@@ -96,28 +100,57 @@ class Features():
 				#if point of view is negative, then this will make date higher, and the current test_date should suffice, because it'll be the current date
 				go_back_week += 1
 				continue
+			if test_date < datetime.date(2014, 1, 1): #cutoff for most good data
+				return None
 			if self.k_means_season_cluster_feature(listing_id, test_date) == date_season_designation:
 				if dict_name in ['ENQUIRY', 'CANCELLED', 'occupancy_dict']:
 					to_add = self.reservation_history_feature(listing_id, dict_name, test_date, point_of_view = 0)
 					if to_add:
-						return to_add
+						if return_final_date:
+							return (to_add, test_date)
+						else:
+							return to_add
 					else:
-						return 0
+						if return_final_date:
+							return (0, test_date)
+						else:
+							return 0
 				else: #cluster_averages
 					to_add = self.cluster_averages_feature(listing_id, test_date)
 					if to_add is None:
 						return None
 					else:
-						return to_add
+						if return_final_date:
+							return (to_add, test_date)
+						else:
+							return to_add
 			else:
 				go_back_week += 1
+
+	def make_best_match_average(self, listing_id, dict_name, date, point_of_view, to_average_number):
+		test_date = date - datetime.timedelta(point_of_view)
+
+		final = []
+		for x in xrange(0, to_average_number, 1):
+			this_returned = self.make_best_match(listing_id, dict_name, test_date, 0, True)
+			if this_returned is not None:
+				final.append(this_returned[0])
+				test_date = this_returned[1]
+			else:
+				x -= 1
+
+		if final:
+			return float(sum(final))/len(final)
+		else:
+			return None
+
 
 	def history_features(self, listing_id, dict_name, date, specification = None, point_of_view = None):
 
 	#specification in this case is just going to be the amount of data around the week to include around the view_date, which is a year ago.
 
 		#reservation_history_feature(self, listing_id, dict_name, day, point_of_view = 0
-		if specification == 'best_match_7': #only for enquiry, cancelled, and cluster_averages and must have a point of view
+		if specification == 'best_match_7' : #only for enquiry, cancelled, and cluster_averages and must have a point of view
 			if point_of_view is None:
 				print "you must put in a point of view for this to work"
 				sys.exit()
@@ -132,7 +165,31 @@ class Features():
 				final.append(to_add)
 			return final
 		elif specification == "best_match_day":
-			return self.make_best_match(listing_id, dict_name, date, point_of_view)
+			to_add = self.make_best_match(listing_id, dict_name, date, point_of_view)
+			if to_add is not None:
+				return to_add
+			else:
+				return None
+		elif specification == "best_match_average":
+			to_add = self.make_best_match_average(listing_id, dict_name, date, point_of_view, 10)
+
+			if to_add is not None:
+				return to_add
+			else:
+				return None
+		elif specification in ["best_match_average_-2", "best_match_average_-2"]:
+			final = []
+			for delta_time in xrange(1, 3, 1):
+				if specification == "best_match_average_-2":
+					date_inspection = date - datetime.timedelta(delta_time)
+				else:
+					date_inspection = date + datetime.timedelta(delta_time)
+				to_add = self.make_best_match_average(listing_id, dict_name, date_inspection, point_of_view, 10)
+				if to_add is not None:
+					final.append(to_add)
+				else:
+					return None
+			return final
 		else:
 			if specification:
 				if not isinstance(specification, int):
@@ -180,7 +237,11 @@ class Features():
 		#
 		#get location_id
 		location_id = self.listing_location_pair[listing_id]
-		return int(self.json_files['k-means_season_clusters'][str(day.year)][str(location_id)]['3'][str(day)])
+		try:
+			return int(self.json_files['k-means_season_clusters'][str(day.year)][str(location_id)]['3'][str(day)])
+		except KeyError:
+			#because the date is a bit too early, sometimes it happens with the point of view functionality
+			return None
 
 	#full_year structure is by thee primary key, then location_cluster, then listing_cluster: day: average
 	#clustering for the whole location?
@@ -211,7 +272,6 @@ class Features():
 			else:
 				return 0
 		else: #it's cancelled, or enquiries
-
 			all_possible_reservations = self.json_files['reservation_dict'][str(listing_id)][str(day.year)][str(day)]
 
 			if not all_possible_reservations:
@@ -228,6 +288,12 @@ class Features():
 
 			return tot_count
 
+	def historical_encoded(self, listing_id, day, season, point_of_view):
+		try:
+			to_add = self.json_files['day_week_historical_encoding'][str(point_of_view)][str(listing_id)][str(day)][str(day.weekday())]
+			return to_add
+		except KeyError:
+			return None
 
 	def _load_json(self, filename):
 		if filename == "day_features":
@@ -309,7 +375,16 @@ def test():
 
 
 if __name__ == '__main__':
-	test()
+	#test()
+	listing_id = 7836L
+	point_of_view = 7
+	date = datetime.date(2015, 3, 26)
+	feature_data_space = {'occupancy_dict': 'best_match_average'}
+	my_features = Features(feature_data_space)
+
+	for dict_name, specification in feature_data_space.iteritems():
+		print my_features.history_features(listing_id, dict_name, date, specification, point_of_view)
+
 
 
 
