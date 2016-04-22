@@ -78,7 +78,7 @@ def fill_experiment_data(testing_listings, start_date, end_date):
     all_data = {}
     for listing_data in testing_listings:
         #setup basic structure
-        if isinstance(listing_data, list):
+        if isinstance(listing_data, list) or isinstance(listing_data, tuple):
             listing_id = listing_data[0]
         else:
             listing_id = listing_data
@@ -119,7 +119,7 @@ def _get_feature_data(listing_data, day):
     global my_features, feature_data_space, point_of_view
 
     final = []
-    if isinstance(listing_data, list):
+    if isinstance(listing_data, list) or isinstance(listing_data, tuple):
         listing_id = listing_data[0]
     else:
         listing_id = listing_data
@@ -480,7 +480,7 @@ def listingCluster_training(experiment_name, with_PCA = None):
 
         print "analyzed ", len(all_results), " records"
         analysis = results_averaging(all_results)
-
+        print analysis
         location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
 
         classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
@@ -492,7 +492,7 @@ def listingCluster_training(experiment_name, with_PCA = None):
 
 
 #where the magic happens
-if __name__ == '__main__':
+def full_experiment():
     global feature_data_space, feature_header, my_features, point_of_view
 
     #categorical features
@@ -514,7 +514,8 @@ if __name__ == '__main__':
 
     '''
     def fullLocation(experiment_name, normalisation_type = None, with_PCA = None)    '''
-    #fullLocation("full_location_normalised_min_z_new_enquiries")
+
+    fullLocation("full_location_normalised_min")
     #only PCA
     #fullLocation("min_max", "min_max")
 
@@ -530,6 +531,9 @@ if __name__ == '__main__':
 
 
     listingCluster_training("cluster_training_min_z")
+
+if __name__ == '__main__':
+    full_experiment()
 
 
 
