@@ -4,7 +4,7 @@ import datetime
 takes datetime for start_date and end date
 '''
 def _daterange(start_date, end_date):
-    for n in range(int ((end_date - start_date).days) + 1): #weird bug, missing the last day, this is a hack
+    for n in range(int ((end_date - start_date).days) ):
         yield start_date + datetime.timedelta(n)
 
 
@@ -31,7 +31,7 @@ def default_date_structure(years = ["2013", "2014", "2015", "2016"]):
     for year in years:
         final[year] = {}
 
-        for day in _daterange(datetime.date(int(year), 01, 01), datetime.date(int(year), 12, 31)):
+        for day in _daterange(datetime.date(int(year), 01, 01), datetime.date(int(year) + 1, 1, 1)):
             final[year][day.strftime("%Y-%m-%d")] = None
 
     return final

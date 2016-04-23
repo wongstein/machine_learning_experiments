@@ -1,6 +1,6 @@
 import MySQLdb
 import os
-import read_csv
+
 
 '''
 This is a private function that automatically updates the csv files
