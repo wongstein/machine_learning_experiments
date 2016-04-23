@@ -4,6 +4,7 @@ import json
 import datetime
 import sys
 #import PCA_features
+import time
 
 '''
 purpose: test to see if random forest can make predictions for
@@ -34,7 +35,7 @@ def transform_data(data_list, transformation_model):
 
     return transformed_data
 
-def fill_training_and_testing_data(testing_dates, training_dates = None):
+def fill_training_and_testing_data(features_to_use, testing_dates, training_dates = None):
     global all_data
 
 
@@ -43,19 +44,22 @@ def fill_training_and_testing_data(testing_dates, training_dates = None):
     {"features": [], "classification" : []}
 
     #listing_id will be a string
-    for listing_id in all_data.keys():
-        if not all_data[listing_id]: #if there is no data in the listing_id
-            continue
+    for listing_id in set(all_data['listing_id'].tolist()):
+        all_days = all_data.loc[all_data['listing_id'] == listing_id]['day'].values.tolist()
 
         testing_data[listing_id] = {"features": [], "classification" : []}
-        for string_day in all_data[listing_id].keys():
+
+        for string_day in all_days:
             day = datetime.datetime.strptime(string_day, "%Y-%m-%d").date()
+            day_features = all_data.loc[(all_data['listing_id']==listing_id) & (all_data['day'] == string_day)][features_to_use].values.tolist()
+            classification = all_data.loc[(all_data['listing_id']==listing_id) & (all_data['day'] == string_day)]["classification"].values.tolist()[0]
+
             if day < testing_dates['start_date'] and day >= training_dates['start_date']:
-                training_data['features'].append(all_data[listing_id][string_day]['features'])
-                training_data['classification'].append(all_data[listing_id][string_day]['classification'])
+                training_data['features'].append(day_features)
+                training_data['classification'].append(classification)
             elif day <= testing_dates['end_date']:
-                testing_data[listing_id]['features'].append(all_data[listing_id][string_day]['features'])
-                testing_data[listing_id]['classification'].append(all_data[listing_id][string_day]['classification'])
+                testing_data[listing_id]['features'].append(day_features)
+                testing_data[listing_id]['classification'].append(classification)
 
     return (training_data, testing_data)
 
@@ -120,8 +124,8 @@ def results_averaging(final_results_dict):
 def make_normalisation_model(all_features, normalisation_type = None):
     transformation_model = {}
 
-    transformation_model['min_max'] = normilisation.normalisation(all_features, feature_header, 'min_max')
-    transformation_model['z-standard'] = normilisation.normalisation(all_features, feature_header, "z-standard")
+    transformation_model['min_max'] = normilisation.normalisation(all_features)
+    transformation_model['z-standard'] = normilisation.normalisation(all_features)
 
     return transformation_model
 
@@ -129,11 +133,10 @@ def make_normalisation_model(all_features, normalisation_type = None):
 experiment_name = string that will be the name of the experiment saved to database
 
 normalisation_type = text that can be either 'z-standard' or 'min_max'.  IF None, then the frankenstein normilisation scheme is used
-
-with_PCA = an int that holds the final number of components in PCA
+features_to_use is a list
 
 '''
-def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
+def fullLocation(experiment_name, features_to_use = None, normalisation_type = None):
     global feature_header, point_of_view, all_data
 
     #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
@@ -142,21 +145,21 @@ def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
 
     for location_id in [0]:
         print "On location ", location_id
+        start_time = time.time()
 
-        with open ('data/feature_data/' + str(location_id) + "_" + str(point_of_view) + "_all_features") as jsonFile:
-            all_data = json.load(jsonFile)
+        #get data
+        file_path = "data/feature_data/" + str(location_id) + "_" + str(point_of_view) + "_all_features"
+        all_data = pd.read_csv(file_path)
 
-        #make transformation_model
-        all_features = [all_data[entry][day]['features'] for entry in all_data.keys() for day in all_data[entry].keys()]
-        transformation_model = make_normalisation_model(all_features)
-
-        transformed_data = transform_data(all_features, transformation_model)
+        #default to using the full feature_header
+        if not features_to_use:
+            features_to_use = feature_header
 
         training_dates = {"start_date": datetime.date(2014, 1, 1), "end_date": datetime.date(2015, 5, 29)}
         testing_dates = {"start_date": datetime.date(2015, 5, 29), "end_date": datetime.date(2016, 1, 29)}
 
         #set up trianing and testing
-        classification_data = fill_training_and_testing_data(testing_dates, training_dates)
+        classification_data = fill_training_and_testing_data(features_to_use, testing_dates, training_dates)
 
         if not classification_data[0]['features']: #if there's no feature data...
             continue
@@ -166,8 +169,13 @@ def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
 
 
         #transform data
-        #training_data['features'] = transformation_model.transform_data(training_data['features'], feature_header, columns_to_normalise)
-        #transform_data(data_list, transformation_model)
+        #
+        #try making normalisation just on the training data (most realistic)
+        #all_features = all_data[features_to_use]
+        transformation_model = make_normalisation_model(training_data['features'])
+
+        transformed_data = transform_data(training_data['features'], transformation_model)
+
         training_data['features'] = transform_data(training_data['features'], transformation_model)
 
         ''''PCA_analysis for fun
@@ -216,50 +224,19 @@ def fullLocation(experiment_name, normalisation_type = None, with_PCA = None):
         print "analyzed ", len(all_results), " records"
     print "finished!"
 
-def point_of_view_experiments():
+def point_of_view_experiments(experiment, features_to_use):
     global point_of_view
     #defaulting to full location now just to see
     for this_point in [0, 1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
         point_of_view = this_point
         #experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
-
-        experiment = "full_location_point_of_view_best_match_average_" + str(point_of_view)
-
-        fullLocation(experiment)
-
-#where the magic happens
-def full_experiment():
-    global feature_data_space, feature_header, my_features, point_of_view
-
-    feature_data_space = [{"weekday_number": None}, {"week_number": None}, {"quarter_in_year": None}, {"day_number": None}, {"month_number": None}, {"listing_cluster": None}]
-
-    #features that are continuous ints
-    feature_data_space += [{"days_active": None}, {"price_dict": None}, {'CANCELLED': point_of_view}, {'ENQUIRY': point_of_view}, {'k-means_season_clusters': None}]
-
-    #history data
-    feature_data_space += [{"k-means_season_clusters": 7}]
-
-    #best match features
-    feature_data_space += [{'occupancy_dict': 'best_match_7'}, {'cluster_averages_year': 'best_match_7'}, {'ENQUIRY': 'best_match_day'}, {'CANCELLED': 'best_match_day'}, {'occupancy_dict': 'best_match_day'}, {'occupancy_dict': 'best_match_average'}, {'ENQUIRY': 'best_match_average'}, {'CANCELLED': 'best_match_average'}]
-
-    #testing features
-    feature_data_space += [{'occupancy_dict': 'best_match_average_-2'}, {'ENQUIRY': 'best_match_average_-2'}, {'CANCELLED': 'best_match_average_-2'}]
-
-    #feature_header
-    feature_header = ["weekday_number", "week_number", 'quarter_in_year', "day_number", "month_number",'listing_cluster',  "days_active", "price_dict", "cancellation count", "enquiry count",'k_means_season_day']
-
-    feature_header += ['k means season history day -1', 'k means season history day  -2', 'k means season history day -3', 'k means history day -4', 'k means history day -5', 'k means history day -6', 'k means history day -7']
-
-    #for best match
-    feature_header += ['occupancy_match_-1', 'occupancy_match_-2', 'occupancy_match_-3', 'occupancy_match_-4', 'occupancy_match_-5', 'occupancy_match_-6', 'occupancy_match_-7', 'cluster_average_match_-1', 'cluster_average_match_-2', 'cluster_average_match_-3', 'cluster_average_match_-4', 'cluster_average_match_-5', 'cluster_average_match_-6', 'cluster_average_match_-7', 'ENQUIRY_match_day', 'CANCELLED_match_day', 'occupancy_match_day', 'occupancy_match_average', 'enquiry_match_average', 'cancelled_match_average']
-    feature_header += ['occupancy_match_avg_-1', 'occupancy_match_avg_-2', 'enquiry_match_avg_-1', 'enquiry_match_avg_-2',  'cancelled_match_avg_-1',   'cancelled_match_avg_-2']
-
-    point_of_view_experiments()
+        experiment += str(point_of_view)
+        fullLocation(experiment, features_to_use)
 
 if __name__ == '__main__':
-    full_experiment()
 
-
+    experiment = "full_location_point_of_view_best_match_average_"
+    point_of_view_experiments(experiment)
 
 
 
