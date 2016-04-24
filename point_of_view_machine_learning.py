@@ -223,6 +223,7 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         #
         #try making normalisation just on the training data (most realistic)
         #all_features = all_data[features_to_use]
+        print "normalising data now"
         transformation_model = make_normalisation_model(training_data['features'])
 
         transformed_data = transform_data(training_data['features'], transformation_model)
@@ -245,6 +246,7 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         '''
 
         all_results = {}
+        print "starting classification experiments"
         for model_name in ["random_forest", "centroid_prediction", "linearSVC", "nearest_neighbor", "decision_tree", "svc"]:
         #for model_name in ['random_forest']:
             try:
@@ -265,7 +267,6 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         #save all_results
         location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
         classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
-        print "saved individual results"
 
         analysis = results_averaging(all_results)
         classification.save_to_database("machine_learning_average_results", experiment_name, location_dict[location_id], analysis)
