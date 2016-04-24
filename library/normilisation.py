@@ -7,7 +7,7 @@ columns to normalise should be a list, where columns are assumed to begin with 0
 '''
 
 class normalisation():
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, name_of_type):
         #really only need the normalisation object, not the dataframe (plus would mean holding a lot more data in memory that I don't want to)
         #save self dataframe
 
@@ -28,7 +28,7 @@ class normalisation():
 
     def transform_data(self, dataframe):
 
-        transformed_list = self.normalisation_model.fit_transform(df[headers_to_normalise])
+        transformed_list = self.normalisation_model.fit_transform(dataframe)
 
         return transformed_list
 

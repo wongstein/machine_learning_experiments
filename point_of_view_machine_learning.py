@@ -1,5 +1,5 @@
-#from library import database, my_time, normilisation, feature_helper, common_database_functions, classification
-from library import my_time, normilisation
+from library import database, my_time, normilisation, classification
+#from library import my_time, normilisation
 import json
 import datetime
 import sys
@@ -30,10 +30,10 @@ def transform_data(data_list, transformation_model):
     #selected transformations, min_max for categorical data
 
     #categorical data min_max
-    transformed_data = transformation_model['min_max'].transform_data(data_list, feature_header)
+    transformed_data = transformation_model['min_max'].transform_data(data_list)
 
     #discrete data
-    transformed_data = transformation_model['z-standard'].transform_data(data_list, feature_header)
+    transformed_data = transformation_model['z-standard'].transform_data(data_list)
 
     return transformed_data
 
@@ -46,8 +46,8 @@ def shape_listing_data(listing_id, listing_all_data, testing_dates, training_dat
 
     for string_day in all_days:
         day = datetime.datetime.strptime(string_day, "%Y-%m-%d").date()
-        day_features = all_data.loc[(all_data['listing_id']==listing_id) & (all_data['day'] == string_day)][features_to_use].values.tolist()[0]
-        classification = all_data.loc[(all_data['listing_id']==listing_id) & (all_data['day'] == string_day)]["classification"].values.tolist()[0]
+        day_features = listing_all_data.loc[(listing_all_data['day'] == string_day)][features_to_use].values.tolist()[0]
+        classification = listing_all_data.loc[(listing_all_data['day'] == string_day)]["classification"].values.tolist()[0]
 
         if day < testing_dates['start_date'] and day >= training_dates['start_date']:
             training_data['features'].append(day_features)
@@ -176,8 +176,8 @@ def results_averaging(final_results_dict):
 def make_normalisation_model(all_features, normalisation_type = None):
     transformation_model = {}
 
-    transformation_model['min_max'] = normilisation.normalisation(all_features)
-    transformation_model['z-standard'] = normilisation.normalisation(all_features)
+    transformation_model['min_max'] = normilisation.normalisation(all_features, "min_max")
+    transformation_model['z-standard'] = normilisation.normalisation(all_features, "z-standard")
 
     return transformation_model
 
@@ -231,17 +231,18 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         training_data['features'] = transform_data(training_data['features'], transformation_model)
 
         ''''PCA_analysis for fun
-        '''
+
         if with_PCA:
             training_data['features'] = PCA_features.do_PCA_analysis(experiment_name, training_data['features'], feature_header, location_id, number_components = with_PCA)
-        '''
+
         tranform training data here
         '''
         for listing_id, testing_dict in testing_data.iteritems():
             testing_dict['features'] = transform_data(testing_dict['features'], transformation_model)
+            '''
             if with_PCA:
                 testing_dict['features'] = PCA_features.do_PCA_analysis(experiment_name, testing_dict['features'], feature_header, location_id, number_components = with_PCA)
-        '''
+
         Training Section
         '''
 
