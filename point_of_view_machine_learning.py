@@ -195,7 +195,7 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
     start_date = datetime.date(2014, 1, 20)
     end_date = datetime.date(2016, 1, 29)
 
-    for location_id in [0]:
+    for location_id in [0, 1, 19]:
         print "On location ", location_id
         start_time = time.time()
 
@@ -284,7 +284,7 @@ def point_of_view_experiments(experiment, features_to_use):
     for this_point in [0, 1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
         point_of_view = this_point
         #experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
-        experiment += str(point_of_view)
+        experiment = experiment + str(point_of_view)
         fullLocation(experiment, features_to_use)
 
 if __name__ == '__main__':
