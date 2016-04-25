@@ -37,7 +37,7 @@ def transform_data(data_list, transformation_model):
 
     return transformed_data
 
-def shape_listing_data(listing_id, listing_all_data, testing_dates, training_dates, q):
+def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_dates, training_dates, q):
 
     all_days = listing_all_data['day'].values.tolist()
 
@@ -89,7 +89,7 @@ def fill_training_and_testing_data(features_to_use, testing_dates, training_date
         process_list = []
 
         for listing_id in id_chunk:
-            p = Process(target = shape_listing_data, args = (listing_id, all_data.loc[(all_data['listing_id']==listing_id)], testing_dates, training_dates, q))
+            p = Process(target = shape_listing_data, args = (listing_id, all_data.loc[(all_data['listing_id']==listing_id)], features_to_use, testing_dates, training_dates, q))
             process_list.append(p)
             p.start()
 
