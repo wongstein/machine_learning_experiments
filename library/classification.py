@@ -202,7 +202,7 @@ def save_to_database(table_name, experiment_name, city_name, full_dict):
     print "saving to database " + table_name + " experiment results: " + experiment_name
 
     #put entries in, then the keys are lists and what I want to store are the true_true,
-    if full_dict and isinstance(full_dict.keys()[0], long):
+    if full_dict and isinstance(full_dict.keys()[0], int):
         insert_query = "INSERT INTO " + table_name + "  VALUES('%s','%s',%s,'%s',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         for listing_id, full_records in full_dict.iteritems():
             #experiment ,  city , listing_id, method, true_true, true_false, false_true, false_false, occupancy_precision, occupancy_recall, empty_precision, empty_recall, occupancy_fOne, empty_fOne, correct_overall

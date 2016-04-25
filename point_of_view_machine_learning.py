@@ -41,7 +41,7 @@ def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_da
 
     all_days = listing_all_data['day'].values.tolist()
 
-    testing_data = {listing_id: {"features": [], "classification" : []}}
+    testing_data = {int(listing_id): {"features": [], "classification" : []}}
     training_data = {"features": [], "classification" : []}
 
     for string_day in all_days:
@@ -53,8 +53,8 @@ def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_da
             training_data['features'].append(day_features)
             training_data['classification'].append(classification)
         elif day <= testing_dates['end_date']:
-            testing_data[listing_id]['features'].append(day_features)
-            testing_data[listing_id]['classification'].append(classification)
+            testing_data[int(listing_id)]['features'].append(day_features)
+            testing_data[int(listing_id)]['classification'].append(classification)
 
     q.put((training_data, testing_data))
 
@@ -156,8 +156,8 @@ def results_averaging(final_results_dict):
                         results_store[method][result_type].append(full_results[result_type])
                     else: #if the result was None or 0
                     #often because there weren't many occupancies or falses in a test set
-                        print "didn't have good data here"
-                        print listing_ids, ", ", method
+                        #print "didn't have good data here"
+                        #print listing_ids, ", ", method
                         pass
 
     #get the average
