@@ -1,4 +1,4 @@
-#import database
+import database
 
 class results():
     def __init__(self, prediction, classification):
