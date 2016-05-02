@@ -231,7 +231,7 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
         listing_chunks.append(small_chunk)
 
     results = {}
-    for id_chunk in listing_chunks[:1]:
+    for id_chunk in listing_chunks:
         #one_listing_year_prediction(results, listing_id)
         #
         #sadly seems that passing in a dict does not work, must use process queue
@@ -245,7 +245,7 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
 
         for process_tuple in process_list:
             return_tuple = q.get()
-            results[return_tuple[0]] = return_tuple[1]
+            results[int(return_tuple[0])] = return_tuple[1]
             process_tuple.join()
 
     classification.save_to_database("monte_carlo_individual_results", experiment_name, location_dict[int(location_id)], results)

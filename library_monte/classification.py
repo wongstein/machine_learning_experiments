@@ -98,31 +98,30 @@ def save_to_database(table_name, experiment_name, city_name, full_dict):
     print "saving to database " + table_name + " experiment results: " + experiment_name
 
     #put entries in, then the keys are lists and what I want to store are the true_true,
-    if full_dict and isinstance(full_dict.keys()[0], long):
-        insert_query = "INSERT INTO " + table_name + "  VALUES('%s','%s',%s,'%s',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    if full_dict and isinstance(full_dict.keys()[0], int):
+        insert_query = "INSERT INTO " + table_name + "  VALUES('%s','%s',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         for listing_id, full_records in full_dict.iteritems():
-            #experiment ,  city , listing_id, method, true_true, true_false, false_true, false_false, occupancy_precision, occupancy_recall, empty_precision, empty_recall, occupancy_fOne, empty_fOne, correct_overall
-            for method, method_results in full_records.iteritems():
-                to_insert = [experiment_name, city_name, listing_id, method]
-                for this_thing in ["true_true", "true_false", "false_true", "false_false", "occupancy_precision", "occupancy_recall", "empty_precision", "empty_recall", "occupancy_fOne", "empty_fOne", "correct_overall"]:
-                    if method_results[this_thing]:
-                        to_insert.append(method_results[this_thing])
-                    else:
-                        to_insert.append("null")
-                #print (insert_query % to_insert)
-                thesis_data.execute(insert_query % tuple(to_insert))
-    elif full_dict:
-        insert_query = "INSERT INTO " + table_name + " VALUES('%s','%s','%s',%s,%s,%s,%s,%s, %s)"
-        #experiment ,  city ,  method, occupancy_precision, occupancy_recall, empty_precision, empty_recall, occupancy_fOne, empty_fOne,
-        for method, method_results in full_dict.iteritems():
-            to_insert = [experiment_name, city_name, method]
-            for this_thing in ["occupancy_precision", "occupancy_recall", "empty_precision", "empty_recall", "occupancy_fOne", "empty_fOne"]:
-                if method_results[this_thing]:
-                    to_insert.append(method_results[this_thing])
+            #experiment ,  city , listing_id, true_true, true_false, false_true, false_false, occupancy_precision, occupancy_recall, empty_precision, empty_recall, occupancy_fOne, empty_fOne, correct_overall
+
+            to_insert = [experiment_name, city_name, listing_id]
+            for this_thing in ["true_true", "true_false", "false_true", "false_false", "occupancy_precision", "occupancy_recall", "empty_precision", "empty_recall", "occupancy_fOne", "empty_fOne", "correct_overall"]:
+                if full_records[this_thing]:
+                    to_insert.append(full_records[this_thing])
                 else:
                     to_insert.append("null")
-
+            #print (insert_query % to_insert)
             thesis_data.execute(insert_query % tuple(to_insert))
+    elif full_dict: #for average results
+        insert_query = "INSERT INTO " + table_name + " VALUES('%s','%s',%s,%s,%s,%s,%s, %s)"
+        #experiment ,  city ,  method, occupancy_precision, occupancy_recall, empty_precision, empty_recall, occupancy_fOne, empty_fOne,
+        to_insert = [experiment_name, city_name]
+        for this_thing in ["occupancy_precision", "occupancy_recall", "empty_precision", "empty_recall", "occupancy_fOne", "empty_fOne"]:
+            if full_dict[this_thing]:
+                to_insert.append(full_dict[this_thing])
+            else:
+                to_insert.append("null")
+
+        thesis_data.execute(insert_query % tuple(to_insert))
 
     thesis_data.destroy_connection()
 
