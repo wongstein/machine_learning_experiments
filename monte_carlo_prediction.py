@@ -217,7 +217,8 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
         print "On location ", location_dict[int(location_id)], " point of view: ", point_of_view
 
         start_time = time.time()
-        testing_listings = reservation_data.keys()
+        testing_listings = common_database_functions.get_listings_for_location(int(location_id))
+        testing_listings = [entry for entry in testing_listings if str(entry) in reservation_data.keys()]
 
         #get stuff ready for multi processing
         listing_chunks = []
