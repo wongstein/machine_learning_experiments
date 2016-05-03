@@ -1,5 +1,6 @@
 from library_monte import MonteCarlo_new
 from library_monte import common_database_functions, my_time, classification
+#from library import my_time, classification
 import datetime
 import json
 import pandas as pd
@@ -21,10 +22,10 @@ outputs a dictionary with: all reservations known for that day
 
 returns dict: day: i: duration, or dict: day: None for empty days.  Doesn't really change anything because an empty dict still returns False
 '''
-with open('data/reservation_dict_combined.json') as jsonFile:
+with open('data/monte_carlo data/reservation_dict_combined.json') as jsonFile:
     reservation_data = json.load(jsonFile)
 
-with open('data/occupancy_dict.json') as jsonFile:
+with open('data/monte_carlo data/occupancy_dict.json') as jsonFile:
     occupancy_dict = json.load(jsonFile)
 
 start_date = None
@@ -189,7 +190,7 @@ def one_listing_year_prediction(listing_id, listing_reservation_data, start_date
     #get results, which returns a tuple: (listing_id, confusion matrix)
     if occupancy_prediction:
         these_results = calculate_results(listing_id, occupancy_prediction, start_date, end_date)
-        #print "on listing ", listing_id, " with: ", these_results
+        print "on listing ", listing_id, " with: ", these_results
         q.put((listing_id, these_results))
 
 '''
@@ -209,15 +210,14 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
 
     location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
     all_results = {}
+    location_id = '0'
+    results = {}
+
     for location_id in ['0', '1', '19']:
-        results = {}
         print "On location ", location_dict[int(location_id)], " point of view: ", point_of_view
 
-        testing_listings = common_database_functions.get_listings_for_location(int(location_id))
-
-        testing_listings = [entry for entry in testing_listings if str(entry) in reservation_data.keys()]
-
         start_time = time.time()
+        testing_listings = reservation_data.keys()
 
         #get stuff ready for multi processing
         listing_chunks = []
@@ -240,7 +240,6 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
             q = Queue()
             process_list = []
 
-            start_time = time.time()
             for listing_id in id_chunk:
                 p = Process(target = one_listing_year_prediction, args = (listing_id, reservation_data[str(listing_id)], start, end, PofV, q))
                 process_list.append(p)
@@ -251,7 +250,6 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
                 results[int(return_tuple[0])] = return_tuple[1]
                 process_tuple.join()
 
-        #for the last straggling process, I can't see them being more than 3 seconds behind
         classification.save_to_database("monte_carlo_individual_results", experiment_name, location_dict[int(location_id)], results)
 
         all_results[location_dict[int(location_id)]] = results_averaging(results)
@@ -259,9 +257,8 @@ def single_listing_prediction(experiment_name, start, end, k_iterations = 1, Pof
         classification.save_to_database("monte_carlo_average_results", experiment_name, location_dict[int(location_id)], all_results[location_dict[int(location_id)]])
 
         print all_results[location_dict[int(location_id)]]
-        print "analyzed ", len(results), "records"
-    print "finished"
-
+        print "\nanalyzed ", len(results), "records"
+        print "time taken: ", (time.time() - start_time)
 
 def main():
 
