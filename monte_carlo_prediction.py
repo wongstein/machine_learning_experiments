@@ -1,5 +1,5 @@
-from library import MonteCarlo_new
-from library import common_database_functions, my_time, classification
+from library_monte import MonteCarlo_new
+from library_monte import common_database_functions, my_time, classification
 import datetime
 import json
 import pandas as pd
