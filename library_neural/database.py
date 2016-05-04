@@ -1,6 +1,6 @@
 import MySQLdb
 import os
-
+import json
 
 '''
 This is a private function that automatically updates the csv files
