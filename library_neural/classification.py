@@ -21,10 +21,10 @@ class classification():
 
         if model_type == "simple_network":
             #hidden units, input shape
-            self.model.add(Dense(training_feature_shape, training_feature_shape ) )
+            self.model.add(Dense(training_feature_shape, input_shape = (training_feature_shape, ) ) )
             self.model.add(Activation('sigmoid'))
             #
-            self.model.add(Dense(training_feature_shape, 2))
+            self.model.add(Dense(2))
             self.model.add(Activation('softmax'))
             self.model.compile(loss='categorical_crossentropy', optimizer='adam')
         elif model_type == "LSTM":
