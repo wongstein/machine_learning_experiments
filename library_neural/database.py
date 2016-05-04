@@ -9,34 +9,33 @@ for the database tables necessary to do the rest of the calculates
 tables: all_data_better", "bed_types_gobig","bed_types_gosmall", "listing_types", "listings_accomodation
 '''
 class database():
-
 	def __init__(self, database_designation):
-        database_dict = {"Thesis": None}
-        database_dict["Thesis"] = self.get_database_config()
+		database_dict = {"Thesis": None}
+		database_dict["Thesis"] = self.get_database_config()
 
-        self.database_name = database_dict[database_designation]['database name']
-        self.host = database_dict[database_designation]['host']
-        self.user = database_dict[database_designation]['user']
-        self.passwd = database_dict[database_designation]['password']
+		self.database_name = database_dict[database_designation]['database name']
+		self.host = database_dict[database_designation]['host']
+		self.user = database_dict[database_designation]['user']
+		self.passwd = database_dict[database_designation]['password']
 
-        #database_types
-        self.text = "TEXT"
-        self.string = "VARCHAR (100)"
-        self.integer = "INT"
-        self.floating = "DECIMAL (10,4)"
-        self.enum = "ENUM "
+		#database_types
+		self.text = "TEXT"
+		self.string = "VARCHAR (100)"
+		self.integer = "INT"
+		self.floating = "DECIMAL (10,4)"
+		self.enum = "ENUM "
 
-        self.db = MySQLdb.connect(host= self.host, user = self.user, passwd = self.passwd, db = self.database_name)
-        self.cursor = self.db.cursor() #does execution statements
+		self.db = MySQLdb.connect(host= self.host, user = self.user, passwd = self.passwd, db = self.database_name)
+		self.cursor = self.db.cursor() #does execution statements
 
-        self._test_connection()
+		self._test_connection()
 
 
-    def get_database_config(self):
-        with open('config/database_setup.json') as jsonFile:
-            database_info = json.load(jsonFile)
+	def get_database_config(self):
+		with open('config/database_setup.json') as jsonFile:
+			database_info = json.load(jsonFile)
 
-        return database_info
+		return database_info
 
 
 	#### THIS BEGINS SMALL TASKS FOR THE DATABASE OBJECT ######
