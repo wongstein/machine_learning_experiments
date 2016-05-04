@@ -10,24 +10,33 @@ tables: all_data_better", "bed_types_gobig","bed_types_gosmall", "listing_types"
 '''
 class database():
 
-	def __init__(self, database_name):
-		self.database_name = database_name
-		self.host = "localhost"
-		self.user = "root"
-		self.passwd = "castrated1432"
-		self.directory = "~/AmeeWongsein/Thesis/"
+	def __init__(self, database_designation):
+        database_dict = {"Thesis": None}
+        database_dict["Thesis"] = self.get_database_config()
 
-		#database_types
-		self.text = "TEXT"
-		self.string = "VARCHAR (100)"
-		self.integer = "INT"
-		self.floating = "DECIMAL (10,4)"
-		self.enum = "ENUM "
+        self.database_name = database_dict[database_designation]['database name']
+        self.host = database_dict[database_designation]['host']
+        self.user = database_dict[database_designation]['user']
+        self.passwd = database_dict[database_designation]['password']
 
-		self.db = MySQLdb.connect(host= self.host, user = self.user, passwd = self.passwd, db = self.database_name)
-		self.cursor = self.db.cursor() #does execution statements
+        #database_types
+        self.text = "TEXT"
+        self.string = "VARCHAR (100)"
+        self.integer = "INT"
+        self.floating = "DECIMAL (10,4)"
+        self.enum = "ENUM "
 
-		self._test_connection()
+        self.db = MySQLdb.connect(host= self.host, user = self.user, passwd = self.passwd, db = self.database_name)
+        self.cursor = self.db.cursor() #does execution statements
+
+        self._test_connection()
+
+
+    def get_database_config(self):
+        with open('config/database_setup.json') as jsonFile:
+            database_info = json.load(jsonFile)
+
+        return database_info
 
 
 	#### THIS BEGINS SMALL TASKS FOR THE DATABASE OBJECT ######
