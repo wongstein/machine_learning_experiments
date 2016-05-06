@@ -469,8 +469,8 @@ def point_of_view_experiments(experiment, features_to_use):
     for this_point in [0, 1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
         point_of_view = this_point
         #experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
-        experiment = experiment + str(point_of_view)
-        fullLocation(experiment, features_to_use)
+        experiment_name = experiment + str(point_of_view)
+        fullLocation(experiment_name, features_to_use)
 
 if __name__ == '__main__':
 
