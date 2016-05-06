@@ -21,7 +21,7 @@ price? Transformed???? (price / location average)
 
 ALSO keep in mind that all data from jsons are strings.
 '''
-point_of_view = 30
+point_of_view = 90
 
 #expecting transformation_model to be a dict where the keys are "min_max", or "z-standard"
 def transform_data(data_list, transformation_model):
