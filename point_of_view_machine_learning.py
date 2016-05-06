@@ -1,4 +1,4 @@
-from library import database, my_time, normilisation, classification
+from library import database, my_time, normilisation, classification, common_database_functions
 #from library import my_time, normilisation
 import json
 import datetime
@@ -21,7 +21,7 @@ price? Transformed???? (price / location average)
 
 ALSO keep in mind that all data from jsons are strings.
 '''
-point_of_view = None
+point_of_view = 30
 
 #expecting transformation_model to be a dict where the keys are "min_max", or "z-standard"
 def transform_data(data_list, transformation_model):
@@ -38,6 +38,9 @@ def transform_data(data_list, transformation_model):
     return transformed_data
 
 def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_dates, training_dates, q):
+
+    if isinstance(listing_id, int):
+        listing_id = str(listing_id)
 
     all_days = listing_all_data['day'].values.tolist()
 
@@ -59,9 +62,11 @@ def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_da
     q.put((training_data, testing_data))
 
 
-def fill_training_and_testing_data(features_to_use, testing_dates, training_dates):
+def fill_training_and_testing_data(features_to_use, testing_dates, training_dates, testing_listings = None):
     global all_data
-    testing_listings = list(set(all_data['listing_id'].tolist()))
+
+    if testing_listings is None:
+        testing_listings = list(set(all_data['listing_id'].tolist()))
 
     training_data = {"features": [], "classification" : []}
     testing_data = {}
@@ -104,9 +109,6 @@ def fill_training_and_testing_data(features_to_use, testing_dates, training_date
             testing_data = _merge_dicts(testing_data, return_tuple[1])
 
             process_tuple.join
-
-
-    print "time took: ", (time.time() - start_time)
 
     return (training_data, testing_data)
 
@@ -195,7 +197,8 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
     start_date = datetime.date(2014, 1, 20)
     end_date = datetime.date(2016, 1, 29)
 
-    for location_id in [0, 1, 19]:
+    #for location_id in [0, 1, 19]:
+    for location_id in [1]:
         print "On location ", location_id
         start_time = time.time()
 
@@ -211,7 +214,7 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         testing_dates = {"start_date": datetime.date(2015, 5, 29), "end_date": datetime.date(2016, 1, 29)}
 
         #set up trianing and testing
-        classification_data = fill_training_and_testing_data(features_to_use, testing_dates, training_dates)
+        classification_data = fill_training_and_testing_data(features_to_use, testing_dates, training_dates, )
 
         if not classification_data[0]['features']: #if there's no feature data...
             continue
@@ -278,6 +281,188 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         print "time taken: ", (time.time() - start_time)
     print "finished!"
 
+def listingCluster(experiment_name, features_to_use = None, normalisation_type = None):
+    global feature_header, point_of_view, all_data
+
+    #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
+    start_date = datetime.date(2014, 1, 20)
+    end_date = datetime.date(2016, 1, 29)
+
+    for location_id in [1]:
+        start_time = time.time()
+
+        #get data
+        file_path = "data/feature_data/" + str(location_id) + "_" + str(point_of_view) + "_all_features"
+        all_data = pd.read_csv(file_path)
+
+        #default to using the full feature_header
+        if not features_to_use:
+            features_to_use = feature_header
+
+        training_dates = {"start_date": datetime.date(2014, 1, 1), "end_date": datetime.date(2015, 5, 29)}
+        testing_dates = {"start_date": datetime.date(2015, 5, 29), "end_date": datetime.date(2016, 1, 29)}
+
+        #get clusters
+        listing_clusters_list = common_database_functions.listing_cluster_type_pairings(location_id, return_dict = False)
+        listing_clusters = {entry[1]:[] for entry in listing_clusters_list}
+        for entry in listing_clusters_list:
+            listing_clusters[entry[1]].append(entry[0])
+
+        #set up trianing and testing
+        all_results = {}
+        for listing_cluster, testing_ids in listing_clusters.iteritems():
+            classification_data = fill_training_and_testing_data(features_to_use, testing_dates, training_dates, testing_ids)
+
+            if not classification_data[0]['features']: #if there's no feature data...
+                continue
+
+            training_data = classification_data[0]
+            testing_data = classification_data[1]
+
+            #transform data
+            #
+            #try making normalisation just on the training data (most realistic)
+            #all_features = all_data[features_to_use]
+            print "normalising data now"
+            transformation_model = make_normalisation_model(training_data['features'])
+
+            training_data['features'] = transform_data(training_data['features'], transformation_model)
+
+            ''''PCA_analysis for fun
+
+            if with_PCA:
+                training_data['features'] = PCA_features.do_PCA_analysis(experiment_name, training_data['features'], feature_header, location_id, number_components = with_PCA)
+
+            tranform training data here
+            '''
+            for listing_id, testing_dict in testing_data.iteritems():
+                if not testing_dict['features']:
+                    continue
+
+                testing_dict['features'] = transform_data(testing_dict['features'], transformation_model)
+            '''
+            if with_PCA:
+                testing_dict['features'] = PCA_features.do_PCA_analysis(experiment_name, testing_dict['features'], feature_header, location_id, number_components = with_PCA)
+
+            Training Section
+            '''
+
+
+            print "starting classification experiments"
+            for model_name in ["random_forest", "centroid_prediction", "linearSVC", "nearest_neighbor", "decision_tree", "svc"]:
+            #for model_name in ['random_forest']:
+                try:
+                    prediction_model = make_classification_model(model_name, training_data)
+                except Exception as e: #there isn't enough training material sorry
+                    print e
+                    break
+
+                for listing_id, testing_dict in testing_data.iteritems():
+                    if isinstance(testing_dict['features'], list):
+                        continue
+
+                    results = test_classification(prediction_model, testing_dict)
+
+                    if results is not False:
+                        if listing_id not in all_results.keys():
+                            all_results[listing_id] = {}
+                        all_results[listing_id][model_name] = results
+
+
+        #save all_results
+        location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
+        classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
+
+        analysis = results_averaging(all_results)
+        classification.save_to_database("machine_learning_average_results", experiment_name, location_dict[location_id], analysis)
+        print "saved average results"
+
+        print analysis
+        print "\nanalyzed ", len(all_results), " records"
+        print "time taken: ", (time.time() - start_time)
+    print "finished!"
+
+def singleListing(experiment_name, features_to_use = None, normalisation_type = None):
+    global feature_header, point_of_view, all_data
+
+    #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
+    start_date = datetime.date(2014, 1, 20)
+    end_date = datetime.date(2016, 1, 29)
+
+    for location_id in [1]:
+        start_time = time.time()
+
+        #get data
+        file_path = "data/feature_data/" + str(location_id) + "_" + str(point_of_view) + "_all_features"
+        all_data = pd.read_csv(file_path)
+
+        #default to using the full feature_header
+        if not features_to_use:
+            features_to_use = feature_header
+
+        training_dates = {"start_date": datetime.date(2014, 1, 1), "end_date": datetime.date(2015, 5, 29)}
+        testing_dates = {"start_date": datetime.date(2015, 5, 29), "end_date": datetime.date(2016, 1, 29)}
+
+        testing_listings = list(set(all_data['listing_id'].tolist()))
+        #set up trianing and testing
+        all_results = {}
+        for listing_id in testing_listings:
+            classification_data = fill_training_and_testing_data(features_to_use, testing_dates, training_dates, [listing_id])
+
+            if not classification_data[0]['features']: #if there's no feature data...
+                continue
+
+            training_data = classification_data[0]
+            testing_data = classification_data[1]
+
+            #transform data
+            #
+            #try making normalisation just on the training data (most realistic)
+            #all_features = all_data[features_to_use]
+            print "normalising data now"
+            transformation_model = make_normalisation_model(training_data['features'])
+
+            training_data['features'] = transform_data(training_data['features'], transformation_model)
+
+            for listing_id, testing_dict in testing_data.iteritems():
+                if not testing_dict['features']:
+                    continue
+
+                testing_dict['features'] = transform_data(testing_dict['features'], transformation_model)
+
+            for model_name in ["random_forest", "centroid_prediction", "linearSVC", "nearest_neighbor", "decision_tree", "svc"]:
+            #for model_name in ['random_forest']:
+                try:
+                    prediction_model = make_classification_model(model_name, training_data)
+                except Exception as e: #there isn't enough training material sorry
+                    print e
+                    break
+
+                for listing_id, testing_dict in testing_data.iteritems():
+                    if isinstance(testing_dict['features'], list):
+                        continue
+
+                    results = test_classification(prediction_model, testing_dict)
+
+                    if results is not False:
+                        if listing_id not in all_results.keys():
+                            all_results[listing_id] = {}
+                        all_results[listing_id][model_name] = results
+
+
+        #save all_results
+        location_dict = {1: "Barcelona", 0: "Rome", 6: "Varenna", 11: "Mallorca", 19: "Rotterdam"}
+        classification.save_to_database("machine_learning_individual_results", experiment_name, location_dict[location_id], all_results)
+
+        analysis = results_averaging(all_results)
+        classification.save_to_database("machine_learning_average_results", experiment_name, location_dict[location_id], analysis)
+        print "saved average results"
+
+        print analysis
+        print "\nanalyzed ", len(all_results), " records"
+        print "time taken: ", (time.time() - start_time)
+    print "finished!"
+
 def point_of_view_experiments(experiment, features_to_use):
     global point_of_view
     #defaulting to full location now just to see
@@ -289,11 +474,10 @@ def point_of_view_experiments(experiment, features_to_use):
 
 if __name__ == '__main__':
 
-    experiment = "full_location_point_of_view_optimised_"
-    features_to_use = ["weekday_number","week_number","quarter_in_year","day_number","month_number","listing_cluster","days_active","price_dict","cancellation count","enquiry count","k_means_season_day","season_-1","season_-2","season_-3","season_-4","season_-5","season_-6","season_-7","listing_cluster_avg_occupancy_best_match_day_-1","listing_cluster_avg_occupancy_best_match_day_-2","listing_cluster_avg_occupancy_best_match_day_-3","listing_cluster_avg_occupancy_best_match_day_-4","listing_cluster_avg_occupancy_best_match_day_-5","listing_cluster_avg_occupancy_best_match_day_-6","listing_cluster_avg_occupancy_best_match_day_-7","occupancy_match_average","enquiry_match_average","cancelled_match_average","occupancy_match_avg_-1","occupancy_match_avg_-2","occupancy_match_avg_-3","occupancy_match_avg_-4","occupancy_match_avg_-5","enquiry_match_avg_-1","enquiry_match_avg_-2","enquiry_match_avg_-3","enquiry_match_avg_-4","enquiry_match_avg_-5","cancelled_match_avg_-1","cancelled_match_avg_-2","cancelled_match_avg_-3","cancelled_match_avg_-4","cancelled_match_avg_-5","occupancy_match_avg_+1","occupancy_match_avg_+2","occupancy_match_avg_+3","occupancy_match_avg_+4","occupancy_match_avg_+5","enquiry_match_avg_+1","enquiry_match_avg_+2","enquiry_match_avg_+3","enquiry_match_avg_+4","enquiry_match_avg_+5","cancelled_match_avg_+1","cancelled_match_avg_+2","cancelled_match_avg_+3","cancelled_match_avg_+4","cancelled_match_avg_+5"]
-    point_of_view_experiments(experiment, features_to_use)
+    experiment = "single_listing_optimised_test"
 
+    features_to_use = ["weekday_number","week_number","quarter_in_year","day_number","month_number","listing_cluster","cancellation count","enquiry count","k_means_season_day","season_-1","season_-2","season_-3","season_-4","season_-5","season_-6","season_-7","occupancy_match_average","enquiry_match_average","cancelled_match_average","occupancy_match_avg_-1","occupancy_match_avg_-2","occupancy_match_avg_-3","occupancy_match_avg_-4","occupancy_match_avg_-5","enquiry_match_avg_-1","enquiry_match_avg_-2","enquiry_match_avg_-3","enquiry_match_avg_-4","enquiry_match_avg_-5","cancelled_match_avg_-1","cancelled_match_avg_-2","cancelled_match_avg_-3","cancelled_match_avg_-4","cancelled_match_avg_-5","occupancy_match_avg_+1","occupancy_match_avg_+2","occupancy_match_avg_+3","occupancy_match_avg_+4","occupancy_match_avg_+5","enquiry_match_avg_+1","enquiry_match_avg_+2","enquiry_match_avg_+3","enquiry_match_avg_+4","enquiry_match_avg_+5","cancelled_match_avg_+1","cancelled_match_avg_+2","cancelled_match_avg_+3","cancelled_match_avg_+4","cancelled_match_avg_+5"]
 
-
+    singleListing(experiment, features_to_use)
 
 
