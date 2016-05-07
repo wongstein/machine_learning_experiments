@@ -197,8 +197,8 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
     start_date = datetime.date(2014, 1, 20)
     end_date = datetime.date(2016, 1, 29)
 
-    #for location_id in [0, 1, 19]:
-    for location_id in [1]:
+    for location_id in [0, 1, 19]:
+    #for location_id in [1]:
         print "On location ", location_id
         start_time = time.time()
 
