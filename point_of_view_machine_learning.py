@@ -31,7 +31,7 @@ def transform_data(data_list, transformation_model, normalisation_model = None):
 
     #categorical data min_max
     if normalisation_model:
-        transformed_data = transformation_model[transformation_model].transform_data(data_list)
+        transformed_data = transformation_model[normalisation_model].transform_data(data_list)
         return transformed_data
 
     transformed_data = transformation_model['min_max'].transform_data(data_list)
