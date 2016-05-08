@@ -1,4 +1,5 @@
 from library_neural import database, my_time, common_database_functions, classification
+from library import normilisation
 import json
 import datetime
 import sys
@@ -102,6 +103,36 @@ def _merge_dicts(dict_1, dict_2):
     z = dict_1.copy()
     z.update(dict_2)
     return z
+
+
+#normalisation for point of view, because the data used is different
+def make_normalisation_model(all_features, normalisation_type = None):
+    transformation_model = {}
+
+    transformation_model['min_max'] = normilisation.normalisation(all_features, "min_max")
+    transformation_model['z-standard'] = normilisation.normalisation(all_features, "z-standard")
+
+    return transformation_model
+
+#expecting transformation_model to be a dict where the keys are "min_max", or "z-standard"
+def transform_data(data_list, transformation_model, normalisation_model = None):
+    global feature_header
+
+    #selected transformations, min_max for categorical data
+
+    #categorical data min_max
+    if normalisation_model:
+        transformed_data = transformation_model[normalisation_model].transform_data(data_list)
+        return transformed_data
+
+    transformed_data = transformation_model['min_max'].transform_data(data_list)
+
+    #discrete data
+    transformed_data = transformation_model['z-standard'].transform_data(data_list)
+
+    return transformed_data
+
+
 '''
 Classification part of code
 '''
@@ -159,7 +190,7 @@ def results_averaging(final_results_dict):
 
     return final
 
-def fullLocation(features_to_use, experiment_name, model_name):
+def fullLocation(features_to_use, experiment_name, model_name, normalisation_type = None):
 
     #add a buffer to prevent hitting key error with year 2013 for average_cluster_year
     start_date = datetime.date(2014, 1, 20)
@@ -186,6 +217,11 @@ def fullLocation(features_to_use, experiment_name, model_name):
         training_data = classification_data[0]
         testing_data = classification_data[1]
 
+        transformation_model = make_normalisation_model(training_data['features'])
+
+        training_data['features'] = transform_data(training_data['features'], transformation_model, normalisation_type)
+
+
         all_results = {}
 
         print "starting classification experiments"
@@ -195,6 +231,8 @@ def fullLocation(features_to_use, experiment_name, model_name):
         print "Making predictions, but here's how long it took to model ", (time.time() - start_time)
 
         for listing_id, testing_dict in testing_data.iteritems():
+            testing_dict['features'] = transform_data(testing_dict['features'], transformation_model, normalisation_type)
+
             results = test_classification(prediction_model, testing_dict)
 
             if results is not False:

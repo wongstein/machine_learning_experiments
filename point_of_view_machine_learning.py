@@ -24,12 +24,16 @@ ALSO keep in mind that all data from jsons are strings.
 point_of_view = 90
 
 #expecting transformation_model to be a dict where the keys are "min_max", or "z-standard"
-def transform_data(data_list, transformation_model):
+def transform_data(data_list, transformation_model, normalisation_model = None):
     global feature_header
 
     #selected transformations, min_max for categorical data
 
     #categorical data min_max
+    if normalisation_model:
+        transformed_data = transformation_model[transformation_model].transform_data(data_list)
+        return transformed_data
+
     transformed_data = transformation_model['min_max'].transform_data(data_list)
 
     #discrete data
@@ -229,9 +233,7 @@ def fullLocation(experiment_name, features_to_use = None, normalisation_type = N
         print "normalising data now"
         transformation_model = make_normalisation_model(training_data['features'])
 
-        transformed_data = transform_data(training_data['features'], transformation_model)
-
-        training_data['features'] = transform_data(training_data['features'], transformation_model)
+        training_data['features'] = transform_data(training_data['features'], transformation_model, normalisation_type)
 
         ''''PCA_analysis for fun
 
@@ -428,7 +430,7 @@ def singleListing(experiment_name, features_to_use = None, normalisation_type = 
                 if not testing_dict['features']:
                     continue
 
-                testing_dict['features'] = transform_data(testing_dict['features'], transformation_model)
+                testing_dict['features'] = transform_data(testing_dict['features'], transformation_model, normalisation_type)
 
             for model_name in ["random_forest", "centroid_prediction", "linearSVC", "nearest_neighbor", "decision_tree", "svc"]:
             #for model_name in ['random_forest']:
@@ -470,7 +472,7 @@ def point_of_view_experiments(experiment, features_to_use):
         point_of_view = this_point
         #experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
         experiment_name = experiment + str(point_of_view)
-        fullLocation(experiment_name, features_to_use)
+        fullLocation(experiment_name, features_to_use, normalisation_type = "z-standard")
 
 if __name__ == '__main__':
 
